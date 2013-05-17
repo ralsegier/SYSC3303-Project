@@ -160,18 +160,7 @@ public class ServerThread implements Runnable{
 				blockNumber++;//increment block number
 				if (blockNumber >= MAX_BLOCK_NUM) blockNumber = 0; //roll over block number if max number is reached
 			} while (n >= MESSAGE_SIZE);
-			//If final data packet was full
-			if(data.length == MESSAGE_SIZE) {
-				msg = new byte[BUFFER_SIZE];//new empty buffer created
-				//first four bits are set to TFTP Requirements
-				msg[0] = 0;
-				msg[1] = 4;
-				msg[2] = 0;
-				msg[3] = blockNumber;
-				//Sends blank data packet to signal end of data
-				System.arraycopy(new byte[MESSAGE_SIZE],0,msg,4,n);
-				sendData(msg);
-			}
+			
 			//closes input stream
 			in.close();
 			
