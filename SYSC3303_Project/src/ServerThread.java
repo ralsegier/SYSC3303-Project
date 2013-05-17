@@ -124,7 +124,8 @@ public class ServerThread implements Runnable{
 			int n;
 			
 			//Reads data from file and makes sure data is still read
-			while ((n = in.read(data)) != -1) {
+			do {
+				n = in.read(data);
 				msg = new byte[BUFFER_SIZE];//new empty buffer created
 				//first four bits are set to TFTP Requirements
 				msg[0] = 0;
@@ -158,7 +159,7 @@ public class ServerThread implements Runnable{
 				
 				blockNumber++;//increment block number
 				if (blockNumber >= MAX_BLOCK_NUM) blockNumber = 0; //roll over block number if max number is reached
-			}
+			} while (n >= MESSAGE_SIZE);
 			//If final data packet was full
 			if(data.length == MESSAGE_SIZE) {
 				msg = new byte[BUFFER_SIZE];//new empty buffer created
