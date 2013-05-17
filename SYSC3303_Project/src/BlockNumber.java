@@ -32,6 +32,10 @@ public class BlockNumber {
 		return numbers;
 	}
 	
+	public byte[] getCurrent() {
+		return this.numbers;
+	}
+	
 	public void increment() {
 		this.numbers = this.getNext();
 	}
