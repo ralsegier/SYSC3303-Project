@@ -129,7 +129,7 @@ public class ServerThread implements Runnable{
 				msg = new byte[BUFFER_SIZE];//new empty buffer created
 				//first four bits are set to TFTP Requirements
 				msg[0] = 0;
-				msg[1] = 4;
+				msg[1] = DATA;
 				msg[2] = 0;
 				msg[3] = blockNumber;
 				//Data read from file
