@@ -262,12 +262,16 @@ public class ServerThread implements Runnable{
 				bn.increment();
 				ackCount++;
 				byte[] temp = getBlock(bn);
+				
 				int length;
+				
 				for(length = 4; length < temp.length; length++) {
 					if (temp[length] == 0) break;
 				}
-				out.write(temp, 0, temp.length);
-				if(length<MESSAGE_SIZE) {
+				out.write(temp, 0, length);
+				System.out.println("Length is "+length);
+				System.out.println("buffer is "+temp.length);
+				if(length+1<MESSAGE_SIZE) {
 					System.out.println("Closing file");
 					out.close();
 					sendAck(bn.getCurrent());

@@ -154,7 +154,7 @@ public class Client  {
 				pack[1] = DATA;
 				System.arraycopy(bnum.getCurrent(), 0, pack, 2, 2);
 				//Data read from file
-				System.arraycopy(data,0,msg,4,n);
+				System.arraycopy(data,0,pack,4,n);
 				System.out.println("Sending data to port: " + this.sendPort);
 				DatagramPacket block = new DatagramPacket(pack,pack.length,InetAddress.getLocalHost(), this.sendPort);
 				sendReceiveSocket.send(block);
