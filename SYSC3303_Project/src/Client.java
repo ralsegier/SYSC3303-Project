@@ -22,11 +22,12 @@ public class Client  {
 	private int sendPort;
 	private int wellKnownPort;
 	private byte msg[];
+	private int counter;
 	
 	   
 	   
 	public Client(){
-
+		counter = 0;
 		mode = "octet";
 		wellKnownPort = 69;
 		
@@ -113,22 +114,27 @@ public class Client  {
 			bnum = new BlockNumber();
 			
 			byte[] pack;//buffer used to send data to client
-			byte[] data = new byte[MESSAGE_SIZE];//buffer used to hold data read from file
+			byte[] data;//buffer used to hold data read from file
 			int n;
 			
 			//Reads data from file and makes sure data is still read
 			do {
-				boolean correctBlock = true;
+				data = new byte[MESSAGE_SIZE];
 				for(;;) {
 					byte ack[] = new byte[BUFFER_SIZE];//Ack data buffer
 					DatagramPacket temp = new DatagramPacket (ack, ack.length);//makes new packet to receive ack from client
 					try {
+						System.out.println("Waiting for Ack " + counter);
+						counter++;
 						sendReceiveSocket.receive(temp);//Receives ack from client on designated socket
+						if (this.sendPort == 0) this.sendPort = temp.getPort();
 						System.out.println("Recieved Ack");
-						byte block[] = new byte[2];
-						System.arraycopy(ack, 2, block, 0, 2);
-						if(ack.length == 4 && ack[0] == 0 && ack[1] == ACK && bnum.compare(block)) break;
-						
+						byte bn[] = new byte[2];
+						System.arraycopy(ack, 2, bn, 0, 2);
+						if(ack[0] == 0 && ack[1] == ACK && bnum.compare(bn)) {
+							System.out.println("Ack good");
+							break;
+						}
 					} catch (IOException e) {
 						e.printStackTrace();
 						System.out.println("Ack Reception Error");
@@ -149,8 +155,10 @@ public class Client  {
 				System.arraycopy(bnum.getCurrent(), 0, pack, 2, 2);
 				//Data read from file
 				System.arraycopy(data,0,msg,4,n);
+				System.out.println("Sending data to port: " + this.sendPort);
 				DatagramPacket block = new DatagramPacket(pack,pack.length,InetAddress.getLocalHost(), this.sendPort);
 				sendReceiveSocket.send(block);
+				System.out.println("Sent data block");
 				
 			} while (n >= MESSAGE_SIZE);
 			

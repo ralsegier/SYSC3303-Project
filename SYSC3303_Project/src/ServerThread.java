@@ -18,6 +18,7 @@ public class ServerThread implements Runnable{
 	private String file;
 	private String mode;
 	private Request requestType;
+	private int ackCount;
 	
 	/**
 	 * Constructor for ServerThread
@@ -25,6 +26,7 @@ public class ServerThread implements Runnable{
 	 */
 	public ServerThread(DatagramPacket request) {
 		this.request = request;
+		this.ackCount = 0;
 		try {
 			this.ip = InetAddress.getLocalHost();
 		} catch (UnknownHostException e) {
@@ -205,8 +207,9 @@ public class ServerThread implements Runnable{
 		System.arraycopy(blockNumber,0,msg,2,2);
 		DatagramPacket temp = new DatagramPacket (msg, msg.length,ip,port);
 		try {
-			System.out.println("Sending ack");
+			System.out.println("Sending ack to port "+port);
 			socket.send(temp);
+			System.out.println("Ack "+this.ackCount+" sent");
 		} catch (IOException e) {
 			System.out.println("Send Packet Error");
 			e.printStackTrace();
@@ -227,11 +230,14 @@ public class ServerThread implements Runnable{
 			DatagramPacket temp = new DatagramPacket (incomingMsg, incomingMsg.length);
 			
 			try {
+				System.out.println("Waiting for data");
 				socket.receive(temp);
+				System.out.println("Data received");
 				byte bn[] = new byte[2];
-				System.arraycopy(temp, 2, bn, 0, 2);
+				System.arraycopy(temp.getData(), 2, bn, 0, 2);
 				if (temp.getData()[0] == 0 && temp.getData()[1] == DATA && blockNumber.compare(bn)) {
-					System.arraycopy(temp.getData(), 4,data, 0, temp.getLength());
+					System.out.println("Data good");
+					System.arraycopy(temp.getData(), 4,data, 0, temp.getLength()-4);
 					return data;
 				}
 				
@@ -248,15 +254,23 @@ public class ServerThread implements Runnable{
 	 */
 	private void handleWrite() {
 		BlockNumber bn = new BlockNumber();
+		
 		try {
 			BufferedOutputStream out = new BufferedOutputStream(new FileOutputStream(file));
 			for (;;) {
 				sendAck(bn.getCurrent());
 				bn.increment();
+				ackCount++;
 				byte[] temp = getBlock(bn);
+				int length;
+				for(length = 4; length < temp.length; length++) {
+					if (temp[length] == 0) break;
+				}
 				out.write(temp, 0, temp.length);
-				if(temp.length<MESSAGE_SIZE) {
+				if(length<MESSAGE_SIZE) {
+					System.out.println("Closing file");
 					out.close();
+					sendAck(bn.getCurrent());
 					break;
 				}
 			}
