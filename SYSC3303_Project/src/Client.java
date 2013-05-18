@@ -29,7 +29,7 @@ public class Client  {
 
 		mode = "octet";
 		wellKnownPort = 69;
-		this.sendPort = 0;
+		
 		  try {
 		         // Construct a datagram socket and bind it to any available
 		         // port on the local host machine. This socket will be used to
@@ -61,6 +61,7 @@ public class Client  {
 		
 		//for(int i = 0; i<10; i++){
 			//int request = random_num.nextInt(2);
+			this.sendPort = 0;
 			if (request == 2){
 				file = new String("write.txt");
 				msg[1] = 2;
@@ -107,9 +108,9 @@ public class Client  {
 	public void clientWrite(){
 		try {
 			//Opens an input stream
-			BufferedInputStream in = new BufferedInputStream(new FileInputStream(file));
+			BufferedInputStream in = new BufferedInputStream(new FileInputStream(FILE_DIR+file));
 			
-			byte blockNumber = 1;//keeps track of current block number
+			bnum = new BlockNumber();
 			
 			byte[] pack;//buffer used to send data to client
 			byte[] data = new byte[MESSAGE_SIZE];//buffer used to hold data read from file
@@ -117,41 +118,40 @@ public class Client  {
 			
 			//Reads data from file and makes sure data is still read
 			do {
+				boolean correctBlock = true;
+				for(;;) {
+					byte ack[] = new byte[BUFFER_SIZE];//Ack data buffer
+					DatagramPacket temp = new DatagramPacket (ack, ack.length);//makes new packet to receive ack from client
+					try {
+						sendReceiveSocket.receive(temp);//Receives ack from client on designated socket
+						System.out.println("Recieved Ack");
+						byte block[] = new byte[2];
+						System.arraycopy(ack, 2, block, 0, 2);
+						if(ack.length == 4 && ack[0] == 0 && ack[1] == ACK && bnum.compare(block)) break;
+						
+					} catch (IOException e) {
+						e.printStackTrace();
+						System.out.println("Ack Reception Error");
+						System.exit(1);
+					}
+					
+				}
+				
+				
+				
+				bnum.increment();
+				
 				n = in.read(data);
 				pack = new byte[BUFFER_SIZE];//new empty buffer created
 				//first four bits are set to TFTP Requirements
 				pack[0] = 0;
 				pack[1] = DATA;
-				pack[2] = 0;
-				pack[3] = blockNumber;
+				System.arraycopy(bnum.getCurrent(), 0, pack, 2, 2);
 				//Data read from file
 				System.arraycopy(data,0,msg,4,n);
 				DatagramPacket block = new DatagramPacket(pack,pack.length,InetAddress.getLocalHost(), this.sendPort);
 				sendReceiveSocket.send(block);
 				
-				
-				boolean correctBlock = true;
-				for(;;) {
-					byte comparitor[] = {0,ACK,0,blockNumber};//used to check ack
-					byte ack[] = new byte[BUFFER_SIZE];//Ack data buffer
-					DatagramPacket temp = new DatagramPacket (ack, ack.length);//makes new packet to receive ack from client
-					try {
-						sendReceiveSocket.receive(temp);//Receives ack from client on designated socket
-						if (temp.getLength()==comparitor.length) correctBlock = false; //Checks for proper Ack size
-
-						for (int i = 0; i < comparitor.length; i++) {
-							if (temp.getData()[i]==comparitor[i]) correctBlock = false;//if any byte in ack is not the same as comparator then ack is not accepted
-						}
-						
-					} catch (IOException e) {
-						e.printStackTrace();
-						System.exit(1);
-					}
-					if (correctBlock==true) break;//if ack has been accepted then loop is exited
-				}
-				
-				blockNumber++;//increment block number
-				if (blockNumber >= MAX_BLOCK_NUM) blockNumber = 0; //roll over block number if max number is reached
 			} while (n >= MESSAGE_SIZE);
 			
 			//closes input stream

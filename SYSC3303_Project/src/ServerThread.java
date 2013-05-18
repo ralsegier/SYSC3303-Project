@@ -205,6 +205,7 @@ public class ServerThread implements Runnable{
 		System.arraycopy(blockNumber,0,msg,2,2);
 		DatagramPacket temp = new DatagramPacket (msg, msg.length,ip,port);
 		try {
+			System.out.println("Sending ack");
 			socket.send(temp);
 		} catch (IOException e) {
 			System.out.println("Send Packet Error");
