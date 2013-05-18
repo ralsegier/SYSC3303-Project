@@ -1,4 +1,3 @@
-
 import java.io.*;
 import java.net.*;
 import java.util.*;
@@ -123,7 +122,7 @@ public class TFTPSimManager  implements Runnable
                 }
 
         System.out.println("TFTPSim: packet sent");
-        System.out.println("***************************FIN*******************************");
+        System.out.println("\n");
 
 // We're finished with this socket, so close it.
         sendSocket.close();
