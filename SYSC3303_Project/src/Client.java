@@ -29,7 +29,7 @@ public class Client  {
 	public Client(){
 		counter = 0;
 		mode = "octet";
-		wellKnownPort = 69;
+		wellKnownPort = 68;
 		
 		  try {
 		         // Construct a datagram socket and bind it to any available
