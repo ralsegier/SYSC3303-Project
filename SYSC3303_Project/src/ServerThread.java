@@ -4,6 +4,7 @@ import java.net.*;
 
 public class ServerThread implements Runnable{
 	public static enum Request {ERROR, READ, WRITE};
+	public static final String FILE_DIR = "ServerFiles\\";
 	public static final int MESSAGE_SIZE = 512;
 	public static final int BUFFER_SIZE = MESSAGE_SIZE+4;
 	public static final byte MAX_BLOCK_NUM = 127;
@@ -24,13 +25,27 @@ public class ServerThread implements Runnable{
 	 */
 	public ServerThread(DatagramPacket request) {
 		this.request = request;
+		try {
+			this.ip = InetAddress.getLocalHost();
+		} catch (UnknownHostException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
 	}
 	
 	/**
 	 * Method parses request to determine request type and handles request accordingly
 	 */
 	public void processRequest() {
+		System.out.println("New client request:");
+		
+		
+		
 		parseRequest();
+		
+		System.out.println("With file: "+file);
+		System.out.println("Encoded in: "+mode);
+		System.out.print("Type: ");
 		
 		try {
 			socket = new DatagramSocket();
@@ -40,13 +55,16 @@ public class ServerThread implements Runnable{
 		}
 		
 		if (requestType==Request.READ) {
+			System.out.println("read");
 			//handle read request
 			handleRead();
 		} else if (requestType==Request.WRITE) {
+			System.out.println("write");
 			//submit write request
 			handleWrite();
 		} else {
 			//submit invalid request
+			System.out.println(requestType);
 			handleError();
 		}
 	}
@@ -57,8 +75,11 @@ public class ServerThread implements Runnable{
 	private void parseRequest() {
 		int length  = this.request.getLength(); //temporarily stores length of request data
 		byte data[] = this.request.getData(); //copies data from request
-		this.ip = this.request.getAddress(); //stores ip address in instance variable
+		//this.ip = this.request.getAddress(); //stores ip address in instance variable
 		this.port = this.request.getPort(); //stores port number in instance variable
+		File here;
+		
+
 		
 		if (data[0]!=0) requestType = Request.ERROR; //Makes sure that request data starts with a 0
 		else if (data[1]==1) requestType = Request.READ;//Checks if request is a read request
@@ -73,7 +94,11 @@ public class ServerThread implements Runnable{
 				if (data[fileCount] == 0) break;
 			}
 			if (fileCount==length) requestType=Request.ERROR;//if there is no zero before the end of the array request is set to Invalid
-			else file = new String(data,2,fileCount-2);//Otherwise, filename is converted into a string and stored in instance variable
+			else {
+				here = new File(FILE_DIR + new String(data,2,fileCount-2));//Otherwise, filename is converted into a string and stored in instance variable
+				file = FILE_DIR + new String(data,2,fileCount-2);
+				System.out.println("File is : file");
+			}
 			
 			//find mode
 			int modeCount;//keeps track of position in data array while getting encoding mode
@@ -82,7 +107,7 @@ public class ServerThread implements Runnable{
 				if (data[modeCount] == 0) break;
 			}
 			if (fileCount==length) requestType=Request.ERROR;//if there is no zero before the end of the array request is set to Invalid
-			else mode = new String(data,fileCount,modeCount-fileCount-1);//Otherwise, filename is converted into a string and stored in instance variable
+			mode = new String(data,fileCount+1,modeCount-fileCount-1);//Otherwise, filename is converted into a string and stored in instance variable
 			
 			if(modeCount!=length-1) requestType=Request.ERROR;//Checks that there is no data after final zero
 		}
@@ -94,14 +119,8 @@ public class ServerThread implements Runnable{
 	 */
 	private void sendData(byte data[]) {
 		//Makes new DatagramPacket to send to client
-		DatagramPacket temp = new DatagramPacket(data,data.length,ip,port);
-		try {
-			//sends packet via default port
-			socket.send(temp);
-		} catch (IOException e) {
-			e.printStackTrace();
-			System.exit(1);
-		}
+
+		
 	}
 	
 
@@ -117,7 +136,8 @@ public class ServerThread implements Runnable{
 			//Opens an input stream
 			BufferedInputStream in = new BufferedInputStream(new FileInputStream(file));
 			
-			byte blockNumber = 1;//keeps track of current block number
+			BlockNumber bn = new BlockNumber();
+			bn.increment();
 			
 			byte[] msg;//buffer used to send data to client
 			byte[] data = new byte[MESSAGE_SIZE];//buffer used to hold data read from file
@@ -130,25 +150,35 @@ public class ServerThread implements Runnable{
 				//first four bits are set to TFTP Requirements
 				msg[0] = 0;
 				msg[1] = DATA;
-				msg[2] = 0;
-				msg[3] = blockNumber;
+				System.arraycopy(bn.getCurrent(),0,msg,2,2);
 				//Data read from file
 				System.arraycopy(data,0,msg,4,n);
-				sendData(msg);
+				DatagramPacket send = new DatagramPacket(data,data.length,ip,port);
+				try {
+					System.out.println("Sending to ip: " + ip);
+					System.out.println("Sending to port: " + port);
+					//sends packet via default port
+					socket.send(send);
+				} catch (IOException e) {
+					e.printStackTrace();
+					System.exit(1);
+				}
+				System.out.println("Sent chunk");
 				
 				
-				boolean correctBlock = true;
+				boolean correctBlock;
 				for(;;) {
-					byte comparitor[] = {0,ACK,0,blockNumber};//used to check ack
+					correctBlock = true;
 					byte ack[] = new byte[BUFFER_SIZE];//Ack data buffer
 					DatagramPacket temp = new DatagramPacket (ack, ack.length);//makes new packet to receive ack from client
 					try {
 						socket.receive(temp);//Receives ack from client on designated socket
-						if (temp.getLength()==comparitor.length) correctBlock = false; //Checks for proper Ack size
+						if (temp.getLength()!=4) correctBlock = false; //Checks for proper Ack size
 
-						for (int i = 0; i < comparitor.length; i++) {
-							if (temp.getData()[i]==comparitor[i]) correctBlock = false;//if any byte in ack is not the same as comparator then ack is not accepted
-						}
+						byte block[] = new byte[2];
+						System.arraycopy(temp.getData(), 2, block, 0, 2);
+						
+						if(temp.getData()[0]!=0 || temp.getData()[1]!=ACK || !bn.compare(block)) correctBlock = false;
 						
 					} catch (IOException e) {
 						e.printStackTrace();
@@ -157,8 +187,7 @@ public class ServerThread implements Runnable{
 					if (correctBlock==true) break;//if ack has been accepted then loop is exited
 				}
 				
-				blockNumber++;//increment block number
-				if (blockNumber >= MAX_BLOCK_NUM) blockNumber = 0; //roll over block number if max number is reached
+				bn.increment();
 			} while (n >= MESSAGE_SIZE);
 			
 			//closes input stream
@@ -181,8 +210,9 @@ public class ServerThread implements Runnable{
 	 * sends an ack to the client, confirming having received the latest block
 	 * @param blockNumber - current block number
 	 */
-	private void sendAck(byte blockNumber) {
-		byte msg[] = {0,ACK,0,blockNumber};
+	private void sendAck(byte blockNumber[]) {
+		byte msg[] = {0,ACK,0,0};
+		System.arraycopy(blockNumber,0,msg,2,2);
 		DatagramPacket temp = new DatagramPacket (msg, msg.length,ip,port);
 		try {
 			socket.send(temp);
@@ -198,7 +228,7 @@ public class ServerThread implements Runnable{
 	 * @param blockNumber - expected block number
 	 * @return returns byte array of data to be written in write request
 	 */
-	private byte[] getBlock(byte blockNumber) {
+	private byte[] getBlock(BlockNumber blockNumber) {
 		byte incomingMsg[];// = new byte[BUFFER_SIZE];
 		byte data[] = new byte[BUFFER_SIZE];
 		for(;;) {
@@ -207,7 +237,9 @@ public class ServerThread implements Runnable{
 			
 			try {
 				socket.receive(temp);
-				if (temp.getData()[0] == 0 && temp.getData()[1] == DATA && temp.getData()[2] == 0) {
+				byte bn[] = new byte[2];
+				System.arraycopy(temp, 2, bn, 0, 2);
+				if (temp.getData()[0] == 0 && temp.getData()[1] == DATA && blockNumber.compare(bn)) {
 					System.arraycopy(temp.getData(), 4,data, 0, temp.getLength());
 					return data;
 				}
@@ -224,15 +256,14 @@ public class ServerThread implements Runnable{
 	 * Writes data blocks to designated file
 	 */
 	private void handleWrite() {
-		byte blockNumber = 0;
+		BlockNumber bn = new BlockNumber();
 		try {
 			BufferedOutputStream out = new BufferedOutputStream(new FileOutputStream(file));
 			for (;;) {
-				sendAck(blockNumber);
-				if(blockNumber >= MAX_BLOCK_NUM) blockNumber = 0;
-				byte[] temp = getBlock(blockNumber);
+				sendAck(bn.getCurrent());
+				bn.increment();
+				byte[] temp = getBlock(bn);
 				out.write(temp, 0, temp.length);
-				blockNumber++;
 				if(temp.length<MESSAGE_SIZE) {
 					out.close();
 					break;
