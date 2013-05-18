@@ -3,7 +3,7 @@ import java.io.*;
 import java.net.*;
 import java.util.*;
 
-//define a connection-manager class;
+//define a TFTPSimManager class;
 public class TFTPSimManager  implements Runnable
 {
 	
@@ -11,13 +11,14 @@ public class TFTPSimManager  implements Runnable
 	private DatagramPacket sendPacket, receivePacket;
 	private DatagramSocket receiveSocket, sendSocket, sendReceiveSocket;
 	private int length;
+	private boolean isFrist=true;
 
 	
 
 	  byte[] data, sending;
 	   
-	   int clientPort, j=0;
-	   InetAddress clientaddress;
+	   int clientPort,ServerPort, j=0;
+	   InetAddress clientaddress,Serveraddress;
 
   public TFTPSimManager( DatagramPacket DP ) throws UnknownHostException {
   	// Get a reference to the data inside the received datagram.
@@ -54,9 +55,9 @@ public class TFTPSimManager  implements Runnable
                    System.exit(1);
                }
 
-// Construct a DatagramPacket for receiving packets up to 100 bytes long (the length of the byte array).
+// Construct a DatagramPacket for receiving packets up to 512 bytes long (the length of the byte array).
 
-           data = new byte[100];
+           data = new byte[512];
            receivePacket = new DatagramPacket(data, data.length);
 
            System.out.println("TFTPSim: Waiting for packet.");
@@ -68,14 +69,32 @@ public class TFTPSimManager  implements Runnable
             System.exit(1);
              }
 
+
+/********************************** Geting the server Port*******************************************/
+ 
+ 
+ 						if(isFrist) {
+ 							ServerPort=receivePacket.getPort();
+ 							Serveraddress=receivePacket.getAddress();
+ 							isFrist=false;
+ 						}
+ 						
 // Process the received datagram.
              System.out.println("TFTPSim: Packet received:");
              System.out.println("From host: " + receivePacket.getAddress());
              System.out.println("Host port: " + receivePacket.getPort());
              System.out.println("Length: " + receivePacket.getLength());
        
-
-         sendPacket = new DatagramPacket(data, receivePacket.getLength(), clientaddress, clientPort);
+		
+						if(receivePacket.getPort()==ServerPort){
+						 sendPacket = new DatagramPacket(data, receivePacket.getLength(), clientaddress, clientPort); //send to client
+	
+						}else{
+							
+				       sendPacket = new DatagramPacket(data, receivePacket.getLength(), clientaddress, clientPort);  // send to Server
+							
+						}
+        
 
          System.out.println( "TFTPSim: Sending packet:");
          System.out.println("To host: " + sendPacket.getAddress());
