@@ -112,17 +112,7 @@ public class ServerThread implements Runnable{
 			if(modeCount!=length-1) requestType=Request.ERROR;//Checks that there is no data after final zero
 		}
 	}
-	
-	/**
-	 * Encloses an array of bytes in a DatagramPacket and sends it to the connected client via this object's default socket
-	 * @param data - byte array to be sent
-	 */
-	private void sendData(byte data[]) {
-		//Makes new DatagramPacket to send to client
-
 		
-	}
-	
 
 	/**
 	 * handles a read request.  Continually loops, reading in data from selected file,
@@ -153,7 +143,7 @@ public class ServerThread implements Runnable{
 				System.arraycopy(bn.getCurrent(),0,msg,2,2);
 				//Data read from file
 				System.arraycopy(data,0,msg,4,n);
-				DatagramPacket send = new DatagramPacket(data,data.length,ip,port);
+				DatagramPacket send = new DatagramPacket(msg,msg.length,ip,port);
 				try {
 					System.out.println("Sending to ip: " + ip);
 					System.out.println("Sending to port: " + port);
@@ -293,7 +283,7 @@ public class ServerThread implements Runnable{
 		 * as per SYSC 3303 assignment 1
 		 */
 		byte data[] = {0, 5};
-		sendData(data);
+		//sendData(data);
 	}
 
 	@Override

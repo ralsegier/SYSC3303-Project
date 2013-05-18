@@ -20,6 +20,7 @@ public class Client  {
 	private DatagramSocket sendReceiveSocket;
 	private BlockNumber bnum;
 	private int sendPort;
+	private int wellKnownPort;
 	private byte msg[];
 	
 	   
@@ -27,7 +28,8 @@ public class Client  {
 	public Client(){
 
 		mode = "octet";
-		sendPort = 69;
+		wellKnownPort = 69;
+		this.sendPort = 0;
 		  try {
 		         // Construct a datagram socket and bind it to any available
 		         // port on the local host machine. This socket will be used to
@@ -69,8 +71,7 @@ public class Client  {
 				System.arraycopy(mode.getBytes(),0,msg,iterator,mode.getBytes().length);
 				iterator+=mode.getBytes().length;
 				msg[iterator] = 0;	
-				receivePacket = process(iterator+1);
-				if (receivePacket.getData()[0] == 0 && receivePacket.getData()[1] == 3 && receivePacket.getData()[3] == 0)
+				sendData(iterator+1);
 				clientWrite();
 				
 			}else if(request == 1){
@@ -83,8 +84,7 @@ public class Client  {
 				System.arraycopy(mode.getBytes(),0,msg,iterator,mode.getBytes().length);
 				iterator+=mode.getBytes().length;
 				msg[iterator] = 0;	
-				receivePacket = process(iterator+1);
-				if (receivePacket.getData()[0] == 0 && receivePacket.getData()[1] == 3 && receivePacket.getData()[3] == 0)
+				sendData(iterator+1);
 				clientRead();		
 			} else {
 				//break;
@@ -92,34 +92,16 @@ public class Client  {
 		//}
 	}
 	
-	public DatagramPacket process(int size){
-		try {
-	           sendPacket = new DatagramPacket(this.msg, size,
-	                                         InetAddress.getLocalHost(), this.sendPort);
-	        } catch (UnknownHostException e) {
-	           e.printStackTrace();
-	           System.exit(1);
-	        }
+	public void sendData(int size){
 		 try {
-	           sendReceiveSocket.send(sendPacket);
+			 sendPacket = new DatagramPacket(this.msg, size,InetAddress.getLocalHost(), this.wellKnownPort);
+			 sendReceiveSocket.send(sendPacket);
 	        } catch (IOException e) {
 	           e.printStackTrace();
 	           System.exit(1);
 	        }
 
 	        System.out.println("Client: Packet sent.");
-	        
-	        byte[] data = new byte[100];
-	        DatagramPacket temp = new DatagramPacket(data, data.length);
-	        
-	        try {
-		           // Block until a datagram is received via sendReceiveSocket.
-		           sendReceiveSocket.receive(temp);
-		        } catch(IOException e) {
-		           e.printStackTrace();
-		           System.exit(1);
-		        }
-	        return temp;
 	}
 	
 	public void clientWrite(){
@@ -196,12 +178,16 @@ public class Client  {
 		try {
 			BufferedOutputStream out = new BufferedOutputStream(new FileOutputStream(FILE_DIR+file));
 			for(;;){
-				
+				int length;
 				byte[] temp = getBlock(bnum.getCurrent());
+				for(length = 4; length < temp.length; length++) {
+					if (temp[length] == 0) break;
+				}
 				out.write(temp,0,temp.length);
+				System.out.println("Sending ack");
 				sendAck(bnum.getCurrent());					
 				
-				if(temp.length<512) {
+				if(length+1<=BUFFER_SIZE) {
 					out.close();
 					break;
 				}
@@ -247,13 +233,19 @@ public class Client  {
 				System.out.println("Waiting for packet on port: "+sendReceiveSocket.getLocalPort());
 				sendReceiveSocket.receive(temp);
 				System.out.println("Block recieved");
+				if(this.sendPort==0) sendPort = temp.getPort();
 				byte blockNumCheck[] = new byte[2];
 				System.arraycopy(temp.getData(), 2, blockNumCheck, 0, 2);
 				if (temp.getData()[0] == 0 && temp.getData()[1] == DATA && bnum.compare(blockNumCheck)) {
-					System.arraycopy(temp.getData(), 4,data, 0, temp.getLength());
+					System.out.println("Data is good");
+					System.arraycopy(temp.getData(), 4,data, 0, temp.getLength()-4);
 					return data;
 				}
-
+				for(int i = 0; i < 4; i ++) {
+					System.out.println("Byte "+i+": "+temp.getData()[i]);
+				}
+				System.out.println("Expecting: 0"+DATA+bnum.getCurrent()[0]+bnum.getCurrent()[1]);
+				System.out.println((temp.getData()[0] == 0)+" "+(temp.getData()[1] == DATA)+" "+(bnum.compare(blockNumCheck)));
 			} catch (IOException e) {
 				e.printStackTrace();
 				System.out.println("Error in getBlock");
@@ -265,3 +257,17 @@ public class Client  {
 	
 	
 }
+/*
+byte[] data = new byte[BUFFER_SIZE];
+DatagramPacket temp = new DatagramPacket(data, data.length);
+
+try {
+       // Block until a datagram is received via sendReceiveSocket.
+    sendReceiveSocket.receive(temp);
+    System.out.println("Packet Recieved");
+    } catch(IOException e) {
+       e.printStackTrace();
+       System.out.println("Error Recieving");
+       System.exit(1);
+    }
+return temp;*/

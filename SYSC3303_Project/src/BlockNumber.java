@@ -19,15 +19,15 @@ public class BlockNumber {
 	}
 	
 	public byte[] getNext() {
-		if (numbers[0] == MAX) {
-			numbers[0] = 0;
-			if (numbers[1] == MAX) {
-				numbers[1] = 0;
+		if (numbers[1] == MAX) {
+			numbers[1] = 0;
+			if (numbers[0] == MAX) {
+				numbers[0] = 0;
 			} else {
-				numbers[1]++;
+				numbers[0]++;
 			}
 		} else {
-			numbers[0]++;
+			numbers[1]++;
 		}
 		return numbers;
 	}
@@ -41,9 +41,10 @@ public class BlockNumber {
 	}
 	
 	public boolean compare(byte n[]) {
-		if(n.length != numbers.length) return false;
-		if(n[0] != numbers[0]) return false;
-		if(n[1] != numbers[0]) return false;
-		return true;
+		boolean tester = true;
+		if(n.length != numbers.length) tester =  false;
+		if(n[0] != numbers[0]) tester =  false;
+		if(n[1] != numbers[1]) tester =  false;
+		return tester;
 	}
 }
