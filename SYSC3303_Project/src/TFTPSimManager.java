@@ -24,18 +24,21 @@ public class TFTPSimManager  implements Runnable
 	   
 	   int clientPort,serverPort;
 
-  public TFTPSimManager( DatagramPacket dp ) throws UnknownHostException {
+  public TFTPSimManager( DatagramPacket dp ) {
   	// Get a reference to the data inside the received datagram.
-    clientPort = dp.getPort();
+    clientPacket = dp;
     serverPort = 69;
     
     exitNext = false;
-	 //  Construct  sendPacket to be sent to the server (to port 69)
-  	serverPacket = new DatagramPacket(dp.getData(), dp.getLength(), InetAddress.getLocalHost(), serverPort);
+	 
+  	
   }
 
   public void run() {
 	  try {
+		//  Construct  sendPacket to be sent to the server (to port 69)
+		clientPort = clientPacket.getPort();
+		serverPacket = new DatagramPacket(clientPacket.getData(),clientPacket.getLength(),InetAddress.getLocalHost(),serverPort);
 		System.out.println("Recieved Packet from client");
 		serverSocket = new DatagramSocket();
 		serverSocket.send(serverPacket);
@@ -48,6 +51,7 @@ public class TFTPSimManager  implements Runnable
 		serverPort = serverPacket.getPort();
 		System.out.println("Recieved packet from server");
 		clientPacket = new DatagramPacket (serverPacket.getData(),serverPacket.getLength(),InetAddress.getLocalHost(),clientPort);
+		clientSocket = new DatagramSocket();
 		clientSocket.send(clientPacket);
 		System.out.println("Forwarded packet to client");
 		if(checkForEnd(clientPacket.getData()))return;

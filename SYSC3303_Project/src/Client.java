@@ -96,6 +96,7 @@ public class Client  {
 	
 	public void sendData(int size){
 		 try {
+			 System.out.println("Sending packet to port: "+this.wellKnownPort);
 			 sendPacket = new DatagramPacket(this.msg, size,InetAddress.getLocalHost(), this.wellKnownPort);
 			 sendReceiveSocket.send(sendPacket);
 	        } catch (IOException e) {
@@ -265,17 +266,4 @@ public class Client  {
 	
 	
 }
-/*
-byte[] data = new byte[BUFFER_SIZE];
-DatagramPacket temp = new DatagramPacket(data, data.length);
 
-try {
-       // Block until a datagram is received via sendReceiveSocket.
-    sendReceiveSocket.receive(temp);
-    System.out.println("Packet Recieved");
-    } catch(IOException e) {
-       e.printStackTrace();
-       System.out.println("Error Recieving");
-       System.exit(1);
-    }
-return temp;*/
