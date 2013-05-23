@@ -24,6 +24,7 @@ public class TFTPSim {
 	private Mode mode;
 	private byte packetType;
 	private int blockNumber;
+	private int errorDetail;
 	private Error error;
 	
 	public TFTPSim()
@@ -38,6 +39,12 @@ public class TFTPSim {
 	   }
 	}
 	
+	
+	/**
+	 * Forms a datagram packet to pass to thread
+	 * @return
+	 * @throws UnknownHostException
+	 */
 	public DatagramPacket FormPacket() throws UnknownHostException
 	{
 		byte data[] = new byte[516];
@@ -54,6 +61,11 @@ public class TFTPSim {
 	
 	}
 	
+	
+	
+	/**
+	 * A menu that asks the user to pick either a Packet error or a TID error
+	 */
 	public void setupErrorMode() {
 		Scanner scanner = new Scanner (System.in);
 		int input;
@@ -73,11 +85,16 @@ public class TFTPSim {
 				tipError(scanner);
 				break;
 			}
-			System.out.println("Invalid option.  Please try again.");
+			System.out.println("Invalid option.  Please try again:");
 		}
 		scanner.close();
 	}
 	
+	
+	/**
+	 * Used to select packet error details
+	 * @param scanner - an input scanner passed into the method to eliminate the need for a new scanner
+	 */
 	private void packetError(Scanner scanner) {
 		//Select Packet Type
 		System.out.println("Packet Error:");
@@ -89,14 +106,30 @@ public class TFTPSim {
 		for(;;) {
 			this.packetType = scanner.nextByte();
 			if (this.packetType!=DATA || this.packetType!=ACK || this.packetType!=REQ) break;
-			System.out.println("Invalid block selection.  Please try again.");
+			System.out.println("Invalid block selection.  Please try again:");
 		} 
 		
 		System.out.println();
 		System.out.println();
 		
 		if (this.packetType == REQ) {
-			//process request error packet
+			System.out.println();
+			System.out.println("Select type of error you wish to generate in the request packet:");
+			System.out.println("1) No Starting Zero");
+			System.out.println("2) Invalid Op Code");
+			System.out.println("3) No File Name");
+			System.out.println("4) No Zero After Filename");
+			System.out.println("5) No Mode");
+			System.out.println("6) No Zero After Mode");
+			System.out.println("7) Data After Zero");
+			
+			for(;;) {
+				this.errorDetail = scanner.nextInt();
+				if (this.errorDetail>0 || this.errorDetail<=7) break;
+				System.out.println("Invalid option.  Please try again:");
+			}
+			error = new Error(TIP, this.packetType, new BlockNumber(this.blockNumber),this.errorDetail);
+			
 			return;
 		}
 		
@@ -104,27 +137,34 @@ public class TFTPSim {
 		System.out.println("Please select a block number to trigger the error: ");
 		for(;;) {
 			this.blockNumber = scanner.nextInt();
-			if (this.blockNumber<=0) break;
-			System.out.println("Invalid block number selection.  Please try again.");
+			if (this.blockNumber>0) break;
+			System.out.println("Invalid block number selection.  Please try again:");
 		}
 		
+		System.out.println();
+		System.out.println("Select type of error you wish to generate in the data packet:");
+		System.out.println("1) No Starting Zero");
+		System.out.println("2) Invalid Op Code");
+		System.out.println("3) Invalid Block Number");
+		
 		if (this.packetType == DATA) {
-			//create data packet error
-			dataPacketError(scanner);
+			System.out.println("4) Too Much Data");
 		} else if (this.packetType == ACK) {
-			//create ack packet error
-			ackPacketError(scanner);
+			System.out.println("4) Add Data to ACK");
 		}
+		for(;;) {
+			this.errorDetail = scanner.nextInt();
+			if (this.errorDetail>0 || this.errorDetail<=4) break;
+			System.out.println("Invalid option.  Please try again:");
+		}
+		error = new Error(TIP, this.packetType, new BlockNumber(this.blockNumber),this.errorDetail);
 	}
 	
-	private void dataPacketError(Scanner s) {
-		//TODO: implement dataPacketError method
-	}
 	
-	private void ackPacketError(Scanner s) {
-		//TODO: implement ackPacketError method
-	}
-	
+	/**
+	 * TIP error detail menu
+	 * @param scanner - an input scanner passed into the method to eliminate the need for a new scanner
+	 */
 	private void tipError(Scanner scanner) {
 		System.out.println("TIP Error:");
 		System.out.println();
@@ -134,7 +174,7 @@ public class TFTPSim {
 		for(;;) {
 			this.packetType = scanner.nextByte();
 			if (this.packetType!=DATA || this.packetType!=ACK) break;
-			System.out.println("Invalid block selection.  Please try again.");
+			System.out.println("Invalid block selection.  Please try again:");
 		} 
 		
 		System.out.println();
@@ -143,11 +183,13 @@ public class TFTPSim {
 		System.out.println("Please select a block number to trigger the error: ");
 		for(;;) {
 			this.blockNumber = scanner.nextInt();
-			if (this.blockNumber<=0) break;
-			System.out.println("Invalid block number selection.  Please try again.");
+			if (this.blockNumber>0) break;
+			System.out.println("Invalid block number selection.  Please try again:");
 		} 
 		error = new Error(TIP, this.packetType, new BlockNumber(this.blockNumber));
 	}
+	
+	
 	
 	public static void main( String args[] ) throws UnknownHostException
 	{
@@ -166,7 +208,7 @@ public class TFTPSim {
 				s.mode = Mode.OFF;
 				break;
 			}
-			System.out.println("Invalid option.  Please try again.");
+			System.out.println("Invalid option.  Please try again:");
 		}
 		scanner.close();
 		
