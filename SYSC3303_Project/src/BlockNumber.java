@@ -18,6 +18,12 @@ public class BlockNumber {
 		numbers[1] = 0;
 	}
 	
+	public BlockNumber (int x) {
+		byte temp[] = new byte[2];
+		temp[1] = (byte)(x/(int)MAX);
+		temp[0] = (byte)(x%(int)MAX);
+	}
+	
 	public byte[] getNext() {
 		if (numbers[1] == MAX) {
 			numbers[1] = 0;

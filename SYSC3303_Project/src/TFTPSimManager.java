@@ -16,100 +16,93 @@ public class TFTPSimManager  implements Runnable
 	private DatagramSocket clientSocket, serverSocket;
 	private boolean isFrist=true;
 	private boolean exitNext;
-	
+	private byte[] data, sending;
+	private int clientPort,serverPort;
 
-	
+	public TFTPSimManager( DatagramPacket dp, Error e ) {
+	  	// Get a reference to the data inside the received datagram.
+	    clientPacket = dp;
+	    serverPort = 69;
+	    
+	    exitNext = false;
+	}
 
-	  byte[] data, sending;
-	   
-	   int clientPort,serverPort;
-
-  public TFTPSimManager( DatagramPacket dp ) {
-  	// Get a reference to the data inside the received datagram.
-    clientPacket = dp;
-    serverPort = 69;
-    
-    exitNext = false;
-	 
-  	
-  }
-
-  public void run() {
-	  try {
-		//  Construct  sendPacket to be sent to the server (to port 69)
-		clientPort = clientPacket.getPort();
-		serverPacket = new DatagramPacket(clientPacket.getData(),clientPacket.getLength(),InetAddress.getLocalHost(),serverPort);
-		System.out.println("Recieved Packet from client");
-		serverSocket = new DatagramSocket();
-		serverSocket.send(serverPacket);
-		System.out.println("Forwarded packet to server");
-		if(checkForEnd(serverPacket.getData()))return;
+	public void run() {
+		try {
+			//  Construct  sendPacket to be sent to the server (to port 69)
+			clientPort = clientPacket.getPort();
+			serverPacket = new DatagramPacket(clientPacket.getData(),clientPacket.getLength(),InetAddress.getLocalHost(),serverPort);
+			System.out.println("Recieved Packet from client");
+			serverSocket = new DatagramSocket();
+			serverSocket.send(serverPacket);
+			System.out.println("Forwarded packet to server");
+			if(checkForEnd(serverPacket.getData()))return;
+			
+			byte data[] = new byte[BUFFER_SIZE];
+			serverPacket = new DatagramPacket(data,BUFFER_SIZE,InetAddress.getLocalHost(),serverPort);
+			serverSocket.receive(serverPacket);
+			serverPort = serverPacket.getPort();
+			System.out.println("Recieved packet from server");
+			clientPacket = new DatagramPacket (serverPacket.getData(),serverPacket.getLength(),InetAddress.getLocalHost(),clientPort);
+			clientSocket = new DatagramSocket();
+			clientSocket.send(clientPacket);
+			System.out.println("Forwarded packet to client");
+			if(checkForEnd(clientPacket.getData()))return;
 		
-		byte data[] = new byte[BUFFER_SIZE];
-		serverPacket = new DatagramPacket(data,BUFFER_SIZE,InetAddress.getLocalHost(),serverPort);
-		serverSocket.receive(serverPacket);
-		serverPort = serverPacket.getPort();
-		System.out.println("Recieved packet from server");
-		clientPacket = new DatagramPacket (serverPacket.getData(),serverPacket.getLength(),InetAddress.getLocalHost(),clientPort);
-		clientSocket = new DatagramSocket();
-		clientSocket.send(clientPacket);
-		System.out.println("Forwarded packet to client");
-		if(checkForEnd(clientPacket.getData()))return;
-	
-		for(;;) {
-			if(clientToServer()) return;
-			if(serverToClient()) return;
+			for(;;) {
+				if(clientToServer()) return;
+				if(serverToClient()) return;
+			}
+			
+		} catch (SocketException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		} catch (IOException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
 		}
-		
-	} catch (SocketException e) {
-		// TODO Auto-generated catch block
-		e.printStackTrace();
-	} catch (IOException e) {
-		// TODO Auto-generated catch block
-		e.printStackTrace();
+		  
 	}
-	  
-  }
   
-  private boolean checkForEnd(byte data[]) {
-	  if(data[0]==0&&data[1]==DATA) {
-		  int i;
-		  for(i = 4; i < data.length; i++) {
-			  if(data[i] == 0) {
-				  exitNext = true;
-				  return false;
-			  }
-		  }
-	  } else if(data[0]==0 && data[1]==ACK && exitNext) return true;
+	private boolean checkForEnd(byte data[]) {
+		if(data[0]==0&&data[1]==DATA) {
+			int i;
+			for(i = 4; i < data.length; i++) {
+				if(data[i] == 0) {
+					exitNext = true;
+					return false;
+				}
+			}
+		} else if(data[0]==0 && data[1]==ACK && exitNext) return true;
 	  
-	  return false;
-  }
-  
-  private boolean clientToServer() {
-	 byte data[] = new byte[BUFFER_SIZE];
-	 try {
-		clientPacket = new DatagramPacket(data,BUFFER_SIZE,InetAddress.getLocalHost(),clientPort);
-		clientSocket.receive(clientPacket);
-		System.out.println("Recieved packet from client");
-		serverPacket = new DatagramPacket (clientPacket.getData(),clientPacket.getLength(),InetAddress.getLocalHost(),serverPort);
-		serverSocket.send(serverPacket);
-		System.out.println("Forwarded packet to server");
-		return checkForEnd(clientPacket.getData());
-	} catch (UnknownHostException e) {
-		// TODO Auto-generated catch block
-		e.printStackTrace();
-		System.exit(1);
-	} catch (IOException e) {
-		// TODO Auto-generated catch block
-		e.printStackTrace();
-		System.exit(1);
+		return false;
 	}
-	return false; 	
-  }
   
-  private boolean serverToClient() {
-	  byte data[] = new byte[BUFFER_SIZE];
-		 try {
+	private boolean clientToServer() {
+		byte data[] = new byte[BUFFER_SIZE];
+		try {
+			clientPacket = new DatagramPacket(data,BUFFER_SIZE,InetAddress.getLocalHost(),clientPort);
+			clientSocket.receive(clientPacket);
+			System.out.println("Recieved packet from client");
+			serverPacket = new DatagramPacket (clientPacket.getData(),clientPacket.getLength(),InetAddress.getLocalHost(),serverPort);
+			serverSocket.send(serverPacket);
+			System.out.println("Forwarded packet to server");
+			return checkForEnd(clientPacket.getData());
+		} catch (UnknownHostException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+			System.exit(1);
+		} catch (IOException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+			System.exit(1);
+		}
+		return false; 	
+	}
+  
+	private boolean serverToClient() {
+		byte data[] = new byte[BUFFER_SIZE];
+		try {
 			serverPacket = new DatagramPacket(data,BUFFER_SIZE,InetAddress.getLocalHost(),serverPort);
 			serverSocket.receive(serverPacket);
 			System.out.println("Recieved packet from server");
@@ -127,5 +120,5 @@ public class TFTPSimManager  implements Runnable
 			System.exit(1);
 		}
 		return false; 	
-  }
+	}
 }
