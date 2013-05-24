@@ -27,13 +27,13 @@ public class Server {
 	public DatagramPacket recieveTFTP() {
 		byte data[] = new byte[BUFFER_SIZE];
 		DatagramPacket incomingPacket = new DatagramPacket(data, data.length);
-		
 		try {
 			wellKnown.receive(incomingPacket);
 		} catch (IOException e) {
 			e.printStackTrace();
 			System.exit(1);
 		}
+		System.out.println("Recieved Packet");
 		return incomingPacket;
 	}
 	

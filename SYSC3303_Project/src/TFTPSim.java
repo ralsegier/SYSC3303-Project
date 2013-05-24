@@ -10,80 +10,214 @@ import java.net.*;
 import java.util.*;
 
 public class TFTPSim {
-
-// UDP datagram packets and sockets used to send / receive
-private DatagramPacket sendPacket, receivePacket;
-private DatagramSocket receiveSocket, sendSocket, sendReceiveSocket;
-
-public TFTPSim()
-{
-   try {
-      // Construct a datagram socket and bind it to port 68 on the local host machine.
-      // This socket will be used to receive UDP Datagram packets from clients.
-      receiveSocket = new DatagramSocket(68);
-
-   } catch (SocketException se) {
-      se.printStackTrace();
-      System.exit(1);
-   }
-}
-
-public DatagramPacket FormaPacket() throws UnknownHostException
-{
-   byte[] data;
-   
-   int clientPort, j=0;
-   InetAddress clientaddress;
-
-  
-      // Construct a DatagramPacket for receiving packets up
-      // to 512 bytes long (the length of the byte array).
-      data = new byte[512];
-      receivePacket = new DatagramPacket(data, data.length);
-
-      System.out.println("TFTPSim: Waiting for packet");
-      // Block until a datagram packet is received from receiveSocket.
-      try {
-         receiveSocket.receive(receivePacket);
-      } catch (IOException e) {
-         e.printStackTrace();
-         System.exit(1);
-      }
-
-      // Process the received datagram.
-      System.out.println("TFTPSim: Packet received:");
-      System.out.println("From host: " + receivePacket.getAddress());
-      clientaddress = receivePacket.getAddress(); ////////////////////***************************************/////////////////////////////////
-      clientPort = receivePacket.getPort();
-      System.out.println("Host port: " + clientPort);
-      System.out.println("Length: " + receivePacket.getLength());
-
-      
-     // data = receivePacket.getData();
-      
-      // Now pass it on to the server (to port 69)
-      // Construct a datagram packet that is to be sent to a specified port on a specified host.
-      // The arguments are:
-      //  msg - the message contained in the packet (the byte array)
-      //  the length we care about - k+1
-      //  InetAddress.getLocalHost() - the Internet address of the destination host.
-     //  69 - the destination port number on the destination host.
-     // int length = receivePacket.getLength();
-       
-     // end of loop
-    return receivePacket;
-
-}
-
-public static void main( String args[] ) throws UnknownHostException
-{
-	for(;;){
 	
-   TFTPSim s = new TFTPSim();
-    Thread connect = new Thread ( new TFTPSimManager(s.FormaPacket()));
-        connect.start();
+	public static enum Mode { OFF, ON};
+	public static final int TIP = 2;
+	public static final int PACKET = 1;
+	
+	public static final int DATA = 1;
+	public static final int ACK = 2;
+	public static final int REQ = 3;
+
+	// UDP datagram packets and sockets used to send / receive
+	private DatagramSocket socket;
+	private Mode mode;
+	private byte packetType;
+	private int blockNumber;
+	private int errorDetail;
+	private Error error;
+	
+	public TFTPSim()
+	{
+	   try {
+	      // Construct a datagram socket and bind it to port 68 on the local host machine.
+	      // This socket will be used to receive UDP Datagram packets from clients.
+	      socket = new DatagramSocket(68);
+	   } catch (SocketException se) {
+	      se.printStackTrace();
+	      System.exit(1);
+	   }
 	}
-}
+	
+	
+	/**
+	 * Forms a datagram packet to pass to thread
+	 * @return
+	 * @throws UnknownHostException
+	 */
+	public DatagramPacket FormPacket() throws UnknownHostException
+	{
+		byte data[] = new byte[516];
+		DatagramPacket packet = new DatagramPacket(data, data.length);
+		try {
+			System.out.println("Waiting for packet from client on port "+socket.getPort());
+			socket.receive(packet);
+		} catch (IOException e) {
+			e.printStackTrace();
+			System.exit(1);
+		}
+		System.out.println("Recieved Packet");
+		return packet;
+	
+	}
+	
+	
+	
+	/**
+	 * A menu that asks the user to pick either a Packet error or a TID error
+	 */
+	public void setupErrorMode() {
+		Scanner scanner = new Scanner (System.in);
+		int input;
+		
+		System.out.println("Which type of error do you wish to generate? (select by number):");
+		System.out.println("4) Packet Error");
+		System.out.println("5) TID Error");
+		System.out.println("Choose: ");
+		
+		for(;;) {
+			input = scanner.nextInt();
+			
+			if(input==4) {
+				packetError(scanner);
+				break;
+			} else if(input==5) {
+				tipError(scanner);
+				break;
+			}
+			System.out.println("Invalid option.  Please try again:");
+		}
+		scanner.close();
+	}
+	
+	
+	/**
+	 * Used to select packet error details
+	 * @param scanner - an input scanner passed into the method to eliminate the need for a new scanner
+	 */
+	private void packetError(Scanner scanner) {
+		//Select Packet Type
+		System.out.println("Packet Error:");
+		System.out.println();
+		System.out.println("Packet type to corrupt:");
+		System.out.println("1) DATA");
+		System.out.println("2) ACK");
+		System.out.println("3) REQ");
+		for(;;) {
+			this.packetType = scanner.nextByte();
+			if (this.packetType!=DATA || this.packetType!=ACK || this.packetType!=REQ) break;
+			System.out.println("Invalid block selection.  Please try again:");
+		} 
+		
+		System.out.println();
+		System.out.println();
+		
+		if (this.packetType == REQ) {
+			System.out.println();
+			System.out.println("Select type of error you wish to generate in the request packet:");
+			System.out.println("1) No Starting Zero");
+			System.out.println("2) Invalid Op Code");
+			System.out.println("3) No File Name");
+			System.out.println("4) No Zero After Filename");
+			System.out.println("5) No Mode");
+			System.out.println("6) No Zero After Mode");
+			System.out.println("7) Data After Zero");
+			
+			for(;;) {
+				this.errorDetail = scanner.nextInt();
+				if (this.errorDetail>0 || this.errorDetail<=7) break;
+				System.out.println("Invalid option.  Please try again:");
+			}
+			error = new Error(TIP, this.packetType, new BlockNumber(this.blockNumber),this.errorDetail);
+			
+			return;
+		}
+		
+		//Select Block Number
+		System.out.println("Please select a block number to trigger the error: ");
+		for(;;) {
+			this.blockNumber = scanner.nextInt();
+			if (this.blockNumber>0) break;
+			System.out.println("Invalid block number selection.  Please try again:");
+		}
+		
+		System.out.println();
+		System.out.println("Select type of error you wish to generate in the data packet:");
+		System.out.println("1) No Starting Zero");
+		System.out.println("2) Invalid Op Code");
+		System.out.println("3) Invalid Block Number");
+		
+		if (this.packetType == DATA) {
+			System.out.println("4) Too Much Data");
+		} else if (this.packetType == ACK) {
+			System.out.println("4) Add Data to ACK");
+		}
+		for(;;) {
+			this.errorDetail = scanner.nextInt();
+			if (this.errorDetail>0 || this.errorDetail<=4) break;
+			System.out.println("Invalid option.  Please try again:");
+		}
+		error = new Error(TIP, this.packetType, new BlockNumber(this.blockNumber),this.errorDetail);
+	}
+	
+	
+	/**
+	 * TIP error detail menu
+	 * @param scanner - an input scanner passed into the method to eliminate the need for a new scanner
+	 */
+	private void tipError(Scanner scanner) {
+		System.out.println("TIP Error:");
+		System.out.println();
+		System.out.println("Packet type to initiate error:");
+		System.out.println("1) DATA");
+		System.out.println("2) ACK");
+		for(;;) {
+			this.packetType = scanner.nextByte();
+			if (this.packetType!=DATA || this.packetType!=ACK) break;
+			System.out.println("Invalid block selection.  Please try again:");
+		} 
+		
+		System.out.println();
+		System.out.println();
+		
+		System.out.println("Please select a block number to trigger the error: ");
+		for(;;) {
+			this.blockNumber = scanner.nextInt();
+			if (this.blockNumber>0) break;
+			System.out.println("Invalid block number selection.  Please try again:");
+		} 
+		error = new Error(TIP, this.packetType, new BlockNumber(this.blockNumber));
+	}
+	
+	
+	
+	public static void main( String args[] ) throws UnknownHostException
+	{
+		TFTPSim s = new TFTPSim();
+		Scanner scanner = new Scanner (System.in);
+		String input;
+		
+		for(;;) {
+			System.out.println("Do you wish to use the simulator? (y/n):");
+			input = scanner.next();
+			
+			if(input.equals('y')||input.equals('Y')) {
+				s.mode = Mode.ON;
+				break;
+			} else if(input.equals('n')||input.equals('N')) {
+				s.mode = Mode.OFF;
+				break;
+			}
+			System.out.println("Invalid option.  Please try again:");
+		}
+		scanner.close();
+		
+		for(;;){
+			Thread connect = new Thread ( new TFTPSimManager(s.FormPacket(),s.error));
+			if(s.mode==Mode.ON) s.setupErrorMode();
+	        connect.start();
+		}
+	}
 }
 
 

@@ -1,4 +1,3 @@
-
 import java.io.*;
 import java.net.*;
 import java.util.*;
@@ -6,126 +5,120 @@ import java.util.*;
 //define a TFTPSimManager class;
 public class TFTPSimManager  implements Runnable
 {
+	public static final int MESSAGE_SIZE = 512;
+	public static final int BUFFER_SIZE = MESSAGE_SIZE+4;
+	public static final byte MAX_BLOCK_NUM = 127;
+	public static final byte DATA = 3;
+	public static final byte ACK = 4;
 	
 	// UDP datagram packets and sockets used to send / receive
-	private DatagramPacket sendPacket, receivePacket;
-	private DatagramSocket receiveSocket, sendSocket, sendReceiveSocket;
-	private int length;
+	private DatagramPacket clientPacket, serverPacket;
+	private DatagramSocket clientSocket, serverSocket;
 	private boolean isFrist=true;
+	private boolean exitNext;
+	private byte[] data, sending;
+	private int clientPort,serverPort;
 
-	
+	public TFTPSimManager( DatagramPacket dp, Error e ) {
+	  	// Get a reference to the data inside the received datagram.
+	    clientPacket = dp;
+	    serverPort = 69;
+	    
+	    exitNext = false;
+	}
 
-	  byte[] data, sending;
-	   
-	   int clientPort,ServerPort, j=0;
-	   InetAddress clientaddress,Serveraddress;
-
-  public TFTPSimManager( DatagramPacket DP ) throws UnknownHostException {
-  	// Get a reference to the data inside the received datagram.
-  	data=DP.getData();
-  	length=DP.getLength();
-  	clientaddress = DP.getAddress(); ////////////////////***************************************/////////////////////////////////
-    clientPort = DP.getPort();
-
-	 //  Construct  sendPacket to be sent to the server (to port 69)
-  	sendPacket = new DatagramPacket(data, length, InetAddress.getLocalHost(), 69);
-  }
-
-  public void run() {
-  	
-	  try {
-      // Construct a datagram socket and bind it to any available port on the local host machine. 
-      // This socket will be used to send and receive UDP Datagram packets to/from the server.
-      sendReceiveSocket = new DatagramSocket();
-	   } catch (SocketException se) {
-	      se.printStackTrace();
-	      System.exit(1);
-	   }
-  
-             System.out.println("TFTPSim*: sending packet.");
-             System.out.println("To host: " + sendPacket.getAddress());
-             System.out.println("Destination host port: " + sendPacket.getPort());
-             System.out.println("Length: " + sendPacket.getLength());
-           
-// Send the datagram packet to the server via the send/receive socket.
-         try {
-             sendReceiveSocket.send(sendPacket);
-             } catch (IOException e) {
-                   e.printStackTrace();
-                   System.exit(1);
-               }
-
-// Construct a DatagramPacket for receiving packets up to 512 bytes long (the length of the byte array).
-
-           data = new byte[512];
-           receivePacket = new DatagramPacket(data, data.length);
-
-           System.out.println("TFTPSim: Waiting for packet.");
-         try {
-            // Block until a datagram is received via sendReceiveSocket.
-            sendReceiveSocket.receive(receivePacket);
-            } catch(IOException e) {
-            e.printStackTrace();
-            System.exit(1);
-             }
-
-
-/********************************** Geting the server Port*******************************************/
- 
- 
- 						if(isFrist) {
- 							ServerPort=receivePacket.getPort();
- 							Serveraddress=receivePacket.getAddress();
- 							isFrist=false;
- 						}
- 						
-// Process the received datagram.
-             System.out.println("TFTPSim: Packet received:");
-             System.out.println("From host: " + receivePacket.getAddress());
-             System.out.println("Host port: " + receivePacket.getPort());
-             System.out.println("Length: " + receivePacket.getLength());
-       
+	public void run() {
+		try {
+			//  Construct  sendPacket to be sent to the server (to port 69)
+			clientPort = clientPacket.getPort();
+			serverPacket = new DatagramPacket(clientPacket.getData(),clientPacket.getLength(),InetAddress.getLocalHost(),serverPort);
+			System.out.println("Recieved Packet from client");
+			serverSocket = new DatagramSocket();
+			serverSocket.send(serverPacket);
+			System.out.println("Forwarded packet to server");
+			if(checkForEnd(serverPacket.getData()))return;
+			
+			byte data[] = new byte[BUFFER_SIZE];
+			serverPacket = new DatagramPacket(data,BUFFER_SIZE,InetAddress.getLocalHost(),serverPort);
+			serverSocket.receive(serverPacket);
+			serverPort = serverPacket.getPort();
+			System.out.println("Recieved packet from server");
+			clientPacket = new DatagramPacket (serverPacket.getData(),serverPacket.getLength(),InetAddress.getLocalHost(),clientPort);
+			clientSocket = new DatagramSocket();
+			clientSocket.send(clientPacket);
+			System.out.println("Forwarded packet to client");
+			if(checkForEnd(clientPacket.getData()))return;
 		
-						if(receivePacket.getPort()==ServerPort){
-						 sendPacket = new DatagramPacket(data, receivePacket.getLength(), clientaddress, clientPort); //send to client
-	
-						}else{
-							
-				       sendPacket = new DatagramPacket(data, receivePacket.getLength(), clientaddress, clientPort);  // send to Server
-							
-						}
-        
-
-         System.out.println( "TFTPSim: Sending packet:");
-         System.out.println("To host: " + sendPacket.getAddress());
-         System.out.println("Destination host port: " + sendPacket.getPort());
-         System.out.println("Length: " + sendPacket.getLength());
-    
-// Send the datagram packet to the client via a new socket.
-
-        try {
-// Construct a new datagram socket and bind it to the same port that the cli used at the beginning 
-// 
-// send UDP Datagram packets.
-
-            sendSocket = new DatagramSocket();
-
-            } catch (SocketException se) {
-                se.printStackTrace();
-                System.exit(1);
-                }
-
-        try {
-            sendSocket.send(sendPacket);
-            } catch (IOException e) {
-                e.printStackTrace();
-                System.exit(1);
-                }
-
-        System.out.println("TFTPSim: packet sent");
-        System.out.println("***************************FIN*******************************");
-
-// We're finished with this socket, so close it.
-        sendSocket.close();
-  }
+			for(;;) {
+				if(clientToServer()) return;
+				if(serverToClient()) return;
+			}
+			
+		} catch (SocketException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		} catch (IOException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+		  
+	}
+  
+	private boolean checkForEnd(byte data[]) {
+		if(data[0]==0&&data[1]==DATA) {
+			int i;
+			for(i = 4; i < data.length; i++) {
+				if(data[i] == 0) {
+					exitNext = true;
+					return false;
+				}
+			}
+		} else if(data[0]==0 && data[1]==ACK && exitNext) return true;
+	  
+		return false;
+	}
+  
+	private boolean clientToServer() {
+		byte data[] = new byte[BUFFER_SIZE];
+		try {
+			clientPacket = new DatagramPacket(data,BUFFER_SIZE,InetAddress.getLocalHost(),clientPort);
+			clientSocket.receive(clientPacket);
+			System.out.println("Recieved packet from client");
+			serverPacket = new DatagramPacket (clientPacket.getData(),clientPacket.getLength(),InetAddress.getLocalHost(),serverPort);
+			serverSocket.send(serverPacket);
+			System.out.println("Forwarded packet to server");
+			return checkForEnd(clientPacket.getData());
+		} catch (UnknownHostException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+			System.exit(1);
+		} catch (IOException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+			System.exit(1);
+		}
+		return false; 	
+	}
+  
+	private boolean serverToClient() {
+		byte data[] = new byte[BUFFER_SIZE];
+		try {
+			serverPacket = new DatagramPacket(data,BUFFER_SIZE,InetAddress.getLocalHost(),serverPort);
+			serverSocket.receive(serverPacket);
+			System.out.println("Recieved packet from server");
+			clientPacket = new DatagramPacket (serverPacket.getData(),serverPacket.getLength(),InetAddress.getLocalHost(),clientPort);
+			clientSocket.send(clientPacket);
+			System.out.println("Forwarded packet to client");
+			return checkForEnd(serverPacket.getData());
+		} catch (UnknownHostException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+			System.exit(1);
+		} catch (IOException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+			System.exit(1);
+		}
+		return false; 	
+	}
 }
