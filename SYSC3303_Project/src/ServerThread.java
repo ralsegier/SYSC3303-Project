@@ -104,7 +104,13 @@ public class ServerThread implements Runnable{
 		this.ip = this.request.getAddress(); //stores ip address in instance variable
 		this.port = this.request.getPort(); //stores port number in instance variable
 		File here;
-		
+				try {
+				socket=new DatagramSocket();
+ } catch (SocketException se) {   // Can't create the socket.
+		         se.printStackTrace();
+		         System.exit(1);
+		      }
+
 
 		
 		if (data[0]!=0) {requestType = Request.ERROR;
