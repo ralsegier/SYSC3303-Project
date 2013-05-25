@@ -3,6 +3,8 @@ import java.net.*;
 
 
 public class ServerThread implements Runnable{
+	
+	/**************************/
 	public static enum Request {ERROR, READ, WRITE};
 	public static final String FILE_DIR = "ServerFiles/";
 	public static final int MESSAGE_SIZE = 512;
@@ -10,7 +12,7 @@ public class ServerThread implements Runnable{
 	public static final byte MAX_BLOCK_NUM = 127;
 	public static final byte DATA = 3;
 	public static final byte ACK = 4;
-	 private String[] PACKETTYPES = {"RRQ", "WRQ", "DATA", "ACK", "ERROR"}; // used for nice error string printing
+	private String[] PACKETTYPES = {"RRQ", "WRQ", "DATA", "ACK", "ERROR"}; // used for nice error string printing
 	private DatagramPacket request;
 	private DatagramSocket socket;
 	private InetAddress ip;
@@ -25,146 +27,153 @@ public class ServerThread implements Runnable{
 	 * @param request - The initial DatagramPacket request sent from the client
 	 */
 	public ServerThread(DatagramPacket request) {
-		this.request = request;
-		this.ackCount = 0;
-		try {
-			this.ip = InetAddress.getLocalHost();
-		} catch (UnknownHostException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		}
+	this.request = request;
+	this.ackCount = 0;
+	try {
+	this.ip = InetAddress.getLocalHost();
+	} catch (UnknownHostException e) {
+	// TODO Auto-generated catch block
+	e.printStackTrace();
 	}
+
+}
 	
 	/**
 	 * Method parses request to determine request type and handles request accordingly
 	 */
 	public void processRequest() {
-		System.out.println("New client request:");
-		
-		
-		
-		parseRequest();
-		
-		System.out.println("With file: "+file);
-		System.out.println("Encoded in: "+mode);
-		System.out.print("Type: ");
-		
+	System.out.println("New client request:");
 	
-		
-		try {
-			socket = new DatagramSocket();
-		} catch (SocketException e) {
-			e.printStackTrace();
-			System.exit(1);
-		}
-		
+	parseRequest();
+	
+	System.out.println("With file: "+file);
+	System.out.println("Encoded in: "+mode);
+	System.out.print("Type: ");
+	
+	
+	
+	try {
+	socket = new DatagramSocket();
+	} catch (SocketException e) {
+	e.printStackTrace();
+	System.exit(1);
+	}
+	
 
 
-		if (requestType==Request.READ) {
-			System.out.println("read");
-			//handle read request
-			handleRead();
-		} else if (requestType==Request.WRITE) {
-			System.out.println("write");
-			//submit write request
-			handleWrite();
-		} else {
-			//submit invalid request*********************************************
-					DatagramPacket err = FormError.illegalTFTP("INVALID OPCODE. expected READ or WRITE request got " + request.getData()[1]);
+	if (requestType==Request.READ) {
+	System.out.println("read");
+	//handle read request
+
+handleRead();
+	} else if (requestType==Request.WRITE) {
+	System.out.println("write");
+	//submit write request
+	handleWrite();
+	} else {
+	//submit invalid request*********************************************
+	DatagramPacket err = FormError.illegalTFTP("INVALID OPCODE. expected READ or WRITE request got " + request.getData()[1]);
                     err.setAddress(request.getAddress());
                     err.setPort(request.getPort());
-				try {
-						socket.send(err);
-				} catch (IOException e) {
-					e.printStackTrace();
-					System.exit(1);
-				}
-			
-			
+	try {
+	socket.send(err);
+	} catch (IOException e) {
+	e.printStackTrace();
+	System.exit(1);
+	}
+	
+	
 
           //   socket.send(err);
              System.out.println(request.getData()[1]);
-             System.out.println("INVALID OPCODE");
-   			 socket.close();
+             System.out.println("INVALID OPCODE expected READ or WRITE request got");
+   	 socket.close();
                                 return;
 
-		}
-		
-		//submit invalid request*********************************************
-		
-		
+	}
+	
+	//submit invalid request*********************************************
+	
+	
 	}
 	
 	/**
 	 * Parses request DatagramPacket and populates instance variables with data
 	 */
 	private void parseRequest() {
-		int length  = this.request.getLength(); //temporarily stores length of request data
-		byte data[] = this.request.getData(); //copies data from request
-		this.ip = this.request.getAddress(); //stores ip address in instance variable
-		this.port = this.request.getPort(); //stores port number in instance variable
-		File here;
-		
+	int length  = this.request.getLength(); //temporarily stores length of request data
+	byte data[] = this.request.getData(); //copies data from request
+	this.ip = this.request.getAddress(); //stores ip address in instance variable
+	this.port = this.request.getPort(); //stores port number in instance variable
+	File here;
+	try {
+	socket=new DatagramSocket();
+	} catch (SocketException se) {   // Can't create the socket.
+	se.printStackTrace();
+	System.exit(1);
+	}
 
-		
-		if (data[0]!=0) {requestType = Request.ERROR;
-								 //**************************
 
-		
+	
+	if (data[0]!=0) {requestType = Request.ERROR;
+	 //**************************
+
+	
 
 
-		
-								DatagramPacket err = FormError.illegalTFTP("INVALID OPCODE. expected READ or WRITE request got " + request.getData()[0]);
+	
+								DatagramPacket err = FormError.illegalTFTP("No starting Zero Data[0]= " + request.getData()[0]);
                                 err.setAddress(request.getAddress());
                                 err.setPort(request.getPort());
-                                		try {
-   										socket.send(err);
+                                	try {
+   											socket.send(err);
 										} catch (IOException e) {
-										e.printStackTrace();
-											System.exit(1);
-											}
+											e.printStackTrace();
+												System.exit(1);
+																	}
                              
                                 System.out.println(request.getData()[0]);
-                                System.out.println("INVALID OPCODE");
+                                System.out.println("No starting Zero Data[0]");
                                         
                                 socket.close();
                                 return;
 
-		
-		
-		 //**************************
-		
-		}
-														//Makes sure that request data starts with a 0
-		else if (data[1]==1) requestType = Request.READ;//Checks if request is a read request
-		else if (data[1]==2) requestType = Request.WRITE;//Checks if request is a write request
-		
-		
-		
-		
-	else{ requestType = Request.ERROR;//If not a read or write, sets request type to invalid
-								 //**************************
-		
-		
+	
+	
+	 //**************************
+	
+	}
+	//Makes sure that request data starts with a 0
+	else if (data[1]==1) requestType = Request.READ;//Checks if request is a read request
+	else if (data[1]==2) requestType = Request.WRITE;//Checks if request is a write request
+	
+
+	
+	
+	else if(!(data[1]==1 || data[2]==2)){ requestType = Request.ERROR;//If not a read or write, sets request type to invalid
+	 //**************************
+	
+	
 								DatagramPacket err = FormError.illegalTFTP("INVALID OPCODE. expected READ or WRITE request got " + request.getData()[1]);
                                 err.setAddress(request.getAddress());
                                 err.setPort(request.getPort());
                                 
-                               		try {
+                               	try {
    										socket.send(err);
-										} catch (IOException e) {
-										e.printStackTrace();
-											System.exit(1);
-											}
+								} catch (IOException e) {
+
+											e.printStackTrace();
+														System.exit(1);
+																		}
                                 System.out.println(request.getData()[1]);
-                                System.out.println("INVALID OPCODE");
+                                System.out.println("INVALID OPCODE expected READ or WRITE request got " + request.getData()[1]);
                                         
                                 socket.close();
                                 return;
 
-		
-		
-		 //**************************
+	
+	
+	 //**************************
 
 
 
@@ -175,105 +184,108 @@ public class ServerThread implements Runnable{
 	
 	
 	
-		if(data[2]<=0) 					  //************************** Missing filename
-										 //**************************
-		{
-			
+	else if(data[2]<=0) 	  //************************** Missing filename
+	 //**************************
+	{
+	
 								DatagramPacket err = FormError.illegalTFTP("Missing File name." + request.getData()[2]);
                                 err.setAddress(request.getAddress());
                                 err.setPort(request.getPort());
-                                                               		try {
-   										socket.send(err);
-										} catch (IOException e) {
-										e.printStackTrace();
-											System.exit(1);
-											}
-                                System.out.println(request.getData()[2]);
-                                System.out.println("Missing File name.");
+                                                               	try {
+  																	 	socket.send(err);
+																			} catch (IOException e) {
+																			e.printStackTrace();
+																			System.exit(1);
+																			}
+                                											System.out.println(request.getData()[2]);
+                               												 System.out.println("Missing File name.");
                                         
-                                socket.close();
-                                return;
+                               												 socket.close();
+                               														 return;
 
-		}
+	}
+	
+	 //**************************
+	
+ 
 		
-		 //**************************
-		
-		if (requestType!=Request.ERROR) {
-			//find filename
-			int fileCount;//keeps track of position in data array while getting file name
-			//finds length of file name (number of bytes between request type and next 0 or end of array)
-			for(fileCount = 2; fileCount < length; fileCount++) {
-				if (data[fileCount] == 0) break;
-			}
-			if (fileCount==length) {requestType=Request.ERROR;
-								DatagramPacket err = FormError.illegalTFTP("No zero after the file name." + request.getData()[length]);
+	
+	//find filename
+	int fileCount;//keeps track of position in data array while getting file name
+	//finds length of file name (number of bytes between request type and next 0 or end of array)
+	for(fileCount = 2; fileCount < length; fileCount++) {
+	if (data[fileCount] == 0) break;
+	}
+	if (fileCount==length) {requestType=Request.ERROR;
+								DatagramPacket err = FormError.illegalTFTP("No zero after the file name." + request.getData());
                                 err.setAddress(request.getAddress());
                                 err.setPort(request.getPort());
-                                                                		try {
-   										socket.send(err);
-										} catch (IOException e) {
-										e.printStackTrace();
-											System.exit(1);
-											}
-                                System.out.println(request.getData()[length]);
+                                                                	try {
+   	socket.send(err);
+	} catch (IOException e) {
+	e.printStackTrace();
+	System.exit(1);
+	}
+                                System.out.println(request.getData());
                                 System.out.println("No zero after the file name.");
                                         
                                 socket.close();
-                                return;				//**************************
-			
-			}//if there is no zero before the end of the array request is set to Invalid
-			else {
-				here = new File(FILE_DIR + new String(data,2,fileCount-2));//Otherwise, filename is converted into a string and stored in instance variable
-				file = FILE_DIR + new String(data,2,fileCount-2);
-				System.out.println("File is : file");
-			}
-			
-			//find mode
-			int modeCount;//keeps track of position in data array while getting encoding mode
-			//finds length of encoding mode (number of bytes between request type and next 0 or end of array)
-			for(modeCount = fileCount+1; modeCount < length; modeCount++) {
-				if (data[modeCount] == 0) break;
-			}
-			
+                                return;	//**************************
+	
+	}//if there is no zero before the end of the array request is set to Invalid
+	else {
+	here = new File(FILE_DIR + new String(data,2,fileCount-2));//Otherwise, filename is converted into a string and stored in instance variable
+	file = FILE_DIR + new String(data,2,fileCount-2);
+	System.out.println("File is : file");
+	}
+	
+	//find mode
+	int modeCount;//keeps track of position in data array while getting encoding mode
+	//finds length of encoding mode (number of bytes between request type and next 0 or end of array)
+	for(modeCount = fileCount+1; modeCount < length; modeCount++) {
+	if (data[modeCount] == 0) break;
+	}
+	
 
-			mode = new String(data,fileCount+1,modeCount-fileCount-1);//Otherwise, filename is converted into a string and stored in instance variable
-			
-			if(!(mode.equalsIgnoreCase("octet")||mode.equalsIgnoreCase("netascii"))){
-				 				System.out.println("INVALID MODE");
+	mode = new String(data,fileCount+1,modeCount-fileCount-1);//Otherwise, filename is converted into a string and stored in instance variable
+	
+
+if(!(mode.equalsIgnoreCase("octet")||mode.equalsIgnoreCase("netascii"))){
+	 	System.out.println("INVALID MODE");
 
                                 DatagramPacket err = FormError.illegalTFTP("INVALID MODE");
                                 err.setAddress(request.getAddress());
                                 err.setPort(request.getPort());
-                                                                		try {
-   										socket.send(err);
-										} catch (IOException e) {
-										e.printStackTrace();
-											System.exit(1);
-											}
+                                                                	try {
+   	socket.send(err);
+	} catch (IOException e) {
+	e.printStackTrace();
+	System.exit(1);
+	}
                                 socket.close();
                                 return;
 	
-			}
-			if(modeCount!=length-1) {requestType=Request.ERROR;
-								DatagramPacket err = FormError.illegalTFTP("there is  data after final zero." + request.getData()[length]);
+	}
+	if(!(modeCount==length || modeCount==length-1 || modeCount==length+1) && !(request.getData()[length-1]==0) ) {requestType=Request.ERROR;
+								DatagramPacket err = FormError.illegalTFTP("there is  data after final zero." + request.getData());
                                 err.setAddress(request.getAddress());
                                 err.setPort(request.getPort());
-                                                                		try {
-   										socket.send(err);
-										} catch (IOException e) {
-										e.printStackTrace();
-											System.exit(1);
-											}
-                                System.out.println(request.getData()[length]);
-                                System.out.println("there is  data after final zero");
+                                                                	try {
+   																socket.send(err);
+																} catch (IOException e) {
+																		e.printStackTrace();
+																					System.exit(1);
+																						}
+                                System.out.println(request.getData());
+                                System.out.println("there is  data after final zero"+fileCount+" "+modeCount);
                                         
                                 socket.close();
-                                return;				//**************************				//**************************
-			
-			}//Checks that there is no data after final zero
-		}
+                                return;	//**************************	//**************************
+	
+	}//Checks that there is no data after final zero
+	
 	}
-		
+	
 /********************************************************************************************************/
 
         
@@ -285,56 +297,58 @@ public class ServerThread implements Runnable{
 	 * and repeating until the entire file is sent
 	 */
 	private void handleRead() {
-		try {
-			//Opens an input stream
-			BufferedInputStream in = new BufferedInputStream(new FileInputStream(file));
-			
-			BlockNumber bn = new BlockNumber();
-			bn.increment();
-			
-			byte[] msg;//buffer used to send data to client
-			byte[] data = new byte[MESSAGE_SIZE];//buffer used to hold data read from file
-			int n;
-			
-			//Reads data from file and makes sure data is still read
-			do {
-				n = in.read(data);
-				msg = new byte[BUFFER_SIZE];//new empty buffer created
-				//first four bits are set to TFTP Requirements
-				msg[0] = 0;
-				msg[1] = DATA;
-				System.arraycopy(bn.getCurrent(),0,msg,2,2);
-				//Data read from file
-				System.arraycopy(data,0,msg,4,n);
-				DatagramPacket send = new DatagramPacket(msg,msg.length,ip,port);
-				try {
-					System.out.println("Sending to ip: " + ip);
-					System.out.println("Sending to port: " + port);
-					//sends packet via default port
-					socket.send(send);
-				} catch (IOException e) {
-					e.printStackTrace();
-					System.exit(1);
-				}
-				System.out.println("Sent chunk");
-				
-				
-				boolean correctBlock;
-				for(;;) {
-					correctBlock = true;
-					byte ack[] = new byte[BUFFER_SIZE];//Ack data buffer
-					DatagramPacket temp = new DatagramPacket (ack, ack.length);//makes new packet to receive ack from client
-					
-					
-					try {
-						//****************************************************************************
-						socket.receive(temp);//Receives ack from client on designated socket
-						if (temp.getLength()!=4) {correctBlock = false;
-					//handleError("acks");
-						} //Checks for proper Ack size				//**************************
+	try {
+	//Opens an input stream
+	BufferedInputStream in = new BufferedInputStream(new FileInputStream(file));
+	
+	BlockNumber bn = new BlockNumber();
+	bn.increment();
+	
+	byte[] msg;//buffer used to send data to client
+	byte[] data = new byte[MESSAGE_SIZE];//buffer used to hold data read from file
+	int n;
+	
+	//Reads data from file and makes sure data is still read
+	do {
+	n = in.read(data);
+	msg = new byte[BUFFER_SIZE];//new empty buffer created
+	//first four bits are set to TFTP Requirements
+	msg[0] = 0;
+	msg[1] = DATA;
+	System.arraycopy(bn.getCurrent(),0,msg,2,2);
+	//Data read from file
+	System.arraycopy(data,0,msg,4,n);
+	DatagramPacket send = new DatagramPacket(msg,msg.length,ip,port);
+	try {
+	System.out.println("Sending to ip: " + ip);
+	System.out.println("Sending to port: " + port);
+	//sends packet via default port
+	
+	socket.send(send);
 
-						
-						else if(temp.getPort() != request.getPort()){
+} catch (IOException e) {
+	e.printStackTrace();
+	System.exit(1);
+	}
+	System.out.println("Sent chunk");
+	
+	
+	boolean correctBlock;
+	for(;;) {
+	correctBlock = true;
+	byte ack[] = new byte[BUFFER_SIZE];//Ack data buffer
+	DatagramPacket temp = new DatagramPacket (ack, ack.length);//makes new packet to receive ack from client
+	
+	
+	try {
+	//****************************************************************************
+	socket.receive(temp);//Receives ack from client on designated socket
+	if (temp.getLength()!=4) {correctBlock = false;
+	//handleError("acks");
+	} //Checks for proper Ack size	//**************************
+
+	
+	else if(temp.getPort() != request.getPort()){
                                                         DatagramPacket err = FormError.unknownTransferID("Unkown client.");
                                                         err.setPort(temp.getPort());
                                                         err.setAddress(temp.getAddress());
@@ -348,36 +362,38 @@ public class ServerThread implements Runnable{
                                                         return;
                                                 }
 
-						//****************************************************************************	
-						byte block[] = new byte[2];
-						System.arraycopy(temp.getData(), 2, block, 0, 2);
-						
-						if(temp.getData()[0]!=0 || temp.getData()[1]!=ACK || !bn.compare(block)) correctBlock = false;
-						
-					} catch (IOException e) {
-						e.printStackTrace();
-						System.exit(1);
-					}
-					if (correctBlock==true) break;//if ack has been accepted then loop is exited
-				}
-				
-				bn.increment();
-			} while (n >= MESSAGE_SIZE);
-			
-			//closes input stream
-			in.close();
-			
-		} catch (FileNotFoundException e) {
-			System.out.println("File Read Error:");
-			e.printStackTrace();
-			handleError();
-			return;
-		} catch (IOException e) {
-			System.out.println("File Read Error:");
-			e.printStackTrace();
-			handleError();
-			return;
-		}
+	//****************************************************************************	
+	byte block[] = new byte[2];
+	System.arraycopy(temp.getData(), 2, block, 0, 2);
+	
+	if(temp.getData()[0]!=0 || temp.getData()[1]!=ACK || !bn.compare(block)) correctBlock = false;
+	
+	} catch (IOException e) {
+	e.printStackTrace();
+	System.exit(1);
+	}
+	if (correctBlock==true) break;//if ack has been accepted then loop is exited
+
+}
+	
+	bn.increment();
+	} while (n >= MESSAGE_SIZE);
+	
+	//closes input stream
+	in.close();
+	
+	} catch (FileNotFoundException e) {
+	System.out.println("File Read Error:");
+	e.printStackTrace();
+	handleError();
+	return;
+	} catch (IOException e) {
+	System.out.println("File Read Error:");
+	e.printStackTrace();
+
+handleError();
+	return;
+	}
 	}
 	
 	/**
@@ -385,18 +401,18 @@ public class ServerThread implements Runnable{
 	 * @param blockNumber - current block number
 	 */
 	private void sendAck(byte blockNumber[]) {
-		byte msg[] = {0,ACK,0,0};
-		System.arraycopy(blockNumber,0,msg,2,2);
-		DatagramPacket temp = new DatagramPacket (msg, msg.length,ip,port);
-		try {
-			System.out.println("Sending ack to port "+port);
-			socket.send(temp);
-			System.out.println("Ack "+this.ackCount+" sent");
-		} catch (IOException e) {
-			System.out.println("Send Packet Error");
-			e.printStackTrace();
-			System.exit(1);
-		}
+	byte msg[] = {0,ACK,0,0};
+	System.arraycopy(blockNumber,0,msg,2,2);
+	DatagramPacket temp = new DatagramPacket (msg, msg.length,ip,port);
+	try {
+	System.out.println("Sending ack to port "+port);
+	socket.send(temp);
+	System.out.println("Ack "+this.ackCount+" sent");
+	} catch (IOException e) {
+	System.out.println("Send Packet Error");
+	e.printStackTrace();
+	System.exit(1);
+	}
 	}
 	
 	/**
@@ -405,45 +421,47 @@ public class ServerThread implements Runnable{
 	 * @return returns byte array of data to be written in write request
 	 */
 	private byte[] getBlock(BlockNumber blockNumber, BufferedOutputStream out) {
-		byte incomingMsg[];// = new byte[BUFFER_SIZE];
-		byte data[] = new byte[BUFFER_SIZE];
-		for(;;) {
-			incomingMsg = new byte[BUFFER_SIZE];
-			DatagramPacket temp = new DatagramPacket (incomingMsg, incomingMsg.length);
-			
-			try {
-				System.out.println("Waiting for data");
-				socket.receive(temp);
-			
-				
-				/*********************************************************/
-			 if(port!=temp.getPort()){
-			DatagramPacket err = FormError.unknownTransferID("Unkown client.");
+	byte incomingMsg[];// = new byte[BUFFER_SIZE];
+	byte data[] = new byte[BUFFER_SIZE];
+	for(;;) {
+	incomingMsg = new byte[BUFFER_SIZE];
+	DatagramPacket temp = new DatagramPacket (incomingMsg, incomingMsg.length);
+	
+	try {
+	System.out.println("Waiting for data");
+	socket.receive(temp);
+	
+	
+	/*********************************************************/
+	 if(port!=temp.getPort()){
+	DatagramPacket err = FormError.unknownTransferID("Unkown client.");
              err.setPort(temp.getPort());
              err.setAddress(temp.getAddress());
               System.out.println("Received packet from unkown client at address: " +temp.getAddress() +":"+temp.getPort());
               socket.send(err);
               continue;}
-				 	
-				 if(!checkForErrors(temp, 3, socket)){out.close(); break; 	};
+	 	
+	 else if(!checkForErrors(temp, 3, socket)){out.close(); break; 	};
                                                 	
                                                 	
-           	//****************************************************************************                                     	
-				 	
-			    System.out.println("Data received");
-				byte bn[] = new byte[2];
-				System.arraycopy(temp.getData(), 2, bn, 0, 2);
-				if (temp.getData()[0] == 0 && temp.getData()[1] == DATA && blockNumber.compare(bn)) {
-					System.out.println("Data good");
-					System.arraycopy(temp.getData(), 4,data, 0, temp.getLength()-4);
-					return data;
-				}
-				
-			} catch (IOException e) {
-				e.printStackTrace();
-				System.exit(1);
-			}
-		}
+           
+//****************************************************************************                                     	
+	 	
+	 System.out.println("Data received");
+	byte bn[] = new byte[2];
+	System.arraycopy(temp.getData(), 2, bn, 0, 2);
+	if (temp.getData()[0] == 0 && temp.getData()[1] == DATA && blockNumber.compare(bn)) {
+	System.out.println("Data good");
+	System.arraycopy(temp.getData(), 4,data, 0, temp.getLength()-4);
+	return data;
+	}
+	
+	} catch (IOException e) {
+	e.printStackTrace();
+
+System.exit(1);
+	}
+	}
 	return data;	
 	}
 	
@@ -452,42 +470,42 @@ public class ServerThread implements Runnable{
 	 * Writes data blocks to designated file
 	 */
 	private void handleWrite() {
-		BlockNumber bn = new BlockNumber();
-		
-		try {
-			BufferedOutputStream out = new BufferedOutputStream(new FileOutputStream(file));
-			for (;;) {
-				sendAck(bn.getCurrent());
-				bn.increment();
-				ackCount++;
-				byte[] temp = getBlock(bn,out);
-				
-				int length;
-				
-				for(length = 4; length < temp.length; length++) {
-					if (temp[length] == 0) break;
-				}
-				out.write(temp, 0, length);
-				System.out.println("Length is "+length);
-				System.out.println("buffer is "+temp.length);
-				if(length+1<MESSAGE_SIZE) {
-					System.out.println("Closing file");
-					out.close();
-					sendAck(bn.getCurrent());
-					break;
-				}
-			}
-		} catch (FileNotFoundException e) {
-			System.out.println("File Read Error:");
-			e.printStackTrace();
-			handleError();
-			return;
-		} catch (IOException e) {
-			System.out.println("File Read Error:");
-			e.printStackTrace();
-			handleError();
-			return;
-		}
+	BlockNumber bn = new BlockNumber();
+	
+	try {
+	BufferedOutputStream out = new BufferedOutputStream(new FileOutputStream(file));
+	for (;;) {
+	sendAck(bn.getCurrent());
+	bn.increment();
+	ackCount++;
+	byte[] temp = getBlock(bn,out);
+	
+	int length;
+	
+	for(length = 4; length < temp.length; length++) {
+	if (temp[length] == 0) break;
+	}
+	out.write(temp, 0, length);
+	System.out.println("Length is "+length);
+	System.out.println("buffer is "+temp.length);
+	if(length+1<MESSAGE_SIZE) {
+	System.out.println("Closing file");
+	out.close();
+	sendAck(bn.getCurrent());
+	break;
+	}
+	}
+	} catch (FileNotFoundException e) {
+	System.out.println("File Read Error:");
+	e.printStackTrace();
+	handleError();
+	return;
+	} catch (IOException e) {
+	System.out.println("File Read Error:");
+	e.printStackTrace();
+	handleError();
+	return;
+	}
 	}
         /**
          * Extract the error message
@@ -507,16 +525,16 @@ public class ServerThread implements Runnable{
 	 * Not implemented properly for this increment
 	 */
 	private void handleError() {
-		//TODO: Implement real error method
-		/*NOTE: This is a test method filler simply
-		 * replying with the appropriate request
-		 * as per SYSC 3303 assignment 1
-		 */
-		 
+	//TODO: Implement real error method
+	/*NOTE: This is a test method filler simply
+	 * replying with the appropriate request
+	 * as per SYSC 3303 assignment 1
+	 */
+	 
 
-		
-		
-		
+	
+	
+	
 	}
 
     private boolean checkForErrors(DatagramPacket packet, int expectedtype, DatagramSocket socket){
@@ -567,7 +585,7 @@ public class ServerThread implements Runnable{
 
 	@Override
 	public void run() {
-		processRequest();
+	processRequest();
 	}
 	
 
@@ -629,7 +647,8 @@ class FormError {
                 data = FormStart(data, msg, four);
 
                 DatagramPacket packet = new DatagramPacket(data, data.length);
-                
+                String m=new String(packet.getData());
+                System.out.println(m);
                 return packet;
         }
         /**
