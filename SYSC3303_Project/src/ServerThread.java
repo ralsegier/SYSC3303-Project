@@ -4,7 +4,7 @@ import java.net.*;
 
 public class ServerThread implements Runnable{
 	
-	/**************************/
+	/***************************/
 	public static enum Request {ERROR, READ, WRITE};
 	public static final String FILE_DIR = "ServerFiles/";
 	public static final int MESSAGE_SIZE = 512;
